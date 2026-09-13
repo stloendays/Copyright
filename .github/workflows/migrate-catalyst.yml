@@ -1,10 +1,6 @@
 name: Migrate catalyst project into Copyright
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/migrate-catalyst.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,28 +10,14 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Copyright
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Clone archived catalyst source
+      - name: Mirror catalyst history into Copyright main
+        shell: bash
         run: |
-          git clone --depth 1 --branch archive/catalyst-main-before-split-20260913 \
-            https://github.com/stloendays/Catalyst-Longevity-Benchmark.git /tmp/catalyst-source
-
-      - name: Replace repository contents with catalyst project
-        run: |
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -a /tmp/catalyst-source/. .
-          rm -rf .git
-          git init
-          git remote add origin https://x-access-token:${GITHUB_TOKEN}@github.com/stloendays/Copyright.git
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: migrate catalyst patent and software copyright project"
-          git branch -M main
-          git push --force origin main
+          set -euo pipefail
+          git clone --mirror https://github.com/stloendays/Catalyst-Longevity-Benchmark.git /tmp/source.git
+          cd /tmp/source.git
+          git push --force \
+            https://x-access-token:${GITHUB_TOKEN}@github.com/stloendays/Copyright.git \
+            refs/heads/archive/catalyst-main-before-split-20260913:refs/heads/main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
