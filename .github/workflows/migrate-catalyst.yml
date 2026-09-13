@@ -2,6 +2,10 @@ name: Migrate catalyst project into Copyright
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-catalyst.yml'
 
 permissions:
   contents: write
@@ -10,14 +14,31 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
     steps:
-      - name: Mirror catalyst history into Copyright main
+      - name: Checkout Copyright with push credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch archived catalyst branch
         shell: bash
         run: |
           set -euo pipefail
-          git clone --mirror https://github.com/stloendays/Catalyst-Longevity-Benchmark.git /tmp/source.git
-          cd /tmp/source.git
-          git push --force \
-            https://x-access-token:${GITHUB_TOKEN}@github.com/stloendays/Copyright.git \
-            refs/heads/archive/catalyst-main-before-split-20260913:refs/heads/main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git remote add catalyst-source https://github.com/stloendays/Catalyst-Longevity-Benchmark.git
+          git fetch catalyst-source archive/catalyst-main-before-split-20260913
+          git checkout -B catalyst-migration FETCH_HEAD
+
+      - name: Preserve catalyst history but filter workflow files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force \
+            --index-filter 'git rm -r --cached --ignore-unmatch .github/workflows' \
+            --prune-empty -- HEAD
+
+      - name: Push catalyst history to Copyright main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force origin HEAD:main
